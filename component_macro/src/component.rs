@@ -71,7 +71,7 @@ impl Parse for Style {
         } else if input.peek(kw::flags) {
             Err(input.error(
                 "`flags` not allowed here; \
-                 use `wasm_component_layer::component::flags!` macro to define `flags` types",
+                 use `wasm_component_layer::flags!` macro to define `flags` types",
             ))
         } else {
             Err(lookahead.error())
@@ -259,7 +259,7 @@ fn expand_record_for_component_type(
     typecheck: TokenStream,
     typecheck_argument: TokenStream,
 ) -> Result<TokenStream> {
-    let internal = quote!(wasm_component_layer::component::__internal);
+    let internal = quote!(wasm_component_layer::__internal);
 
     let mut lower_generic_params = TokenStream::new();
     let mut lower_generic_args = TokenStream::new();
@@ -271,22 +271,18 @@ fn expand_record_for_component_type(
         let generic = format_ident!("T{}", index);
 
         lower_generic_params.extend(quote!(#generic: Copy,));
-        lower_generic_args
-            .extend(quote!(<#ty as wasm_component_layer::component::ComponentType>::Lower,));
+        lower_generic_args.extend(quote!(<#ty as wasm_component_layer::ComponentType>::Lower,));
 
         lower_field_declarations.extend(quote!(#ident: #generic,));
 
         abi_list.extend(quote!(
-            <#ty as wasm_component_layer::component::ComponentType>::ABI,
+            <#ty as wasm_component_layer::ComponentType>::ABI,
         ));
 
         unique_types.insert(ty);
     }
 
-    let generics = add_trait_bounds(
-        generics,
-        parse_quote!(wasm_component_layer::component::ComponentType),
-    );
+    let generics = add_trait_bounds(generics, parse_quote!(wasm_component_layer::ComponentType));
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     let lower = format_ident!("Lower{}", name);
 
@@ -314,7 +310,7 @@ fn expand_record_for_component_type(
             _align: [wasm_component_layer::ValRaw; 0],
         }
 
-        unsafe impl #impl_generics wasm_component_layer::component::ComponentType for #name #ty_generics #where_clause {
+        unsafe impl #impl_generics wasm_component_layer::ComponentType for #name #ty_generics #where_clause {
             type Lower = #lower <#lower_generic_args>;
 
             const ABI: #internal::CanonicalAbiInfo =
@@ -359,31 +355,26 @@ impl Expander for LiftExpander {
         generics: &syn::Generics,
         fields: &[&syn::Field],
     ) -> Result<TokenStream> {
-        let internal = quote!(wasm_component_layer::component::__internal);
+        let internal = quote!(wasm_component_layer::__internal);
 
         let mut lifts = TokenStream::new();
         let mut loads = TokenStream::new();
 
         for (i, syn::Field { ident, ty, .. }) in fields.iter().enumerate() {
             let field_ty = quote!(ty.fields[#i].ty);
-            lifts.extend(
-                quote!(#ident: <#ty as wasm_component_layer::component::Lift>::lift(
+            lifts.extend(quote!(#ident: <#ty as wasm_component_layer::Lift>::lift(
                 cx, #field_ty, &src.#ident
-            )?,),
-            );
+            )?,));
 
-            loads.extend(quote!(#ident: <#ty as wasm_component_layer::component::Lift>::load(
+            loads.extend(quote!(#ident: <#ty as wasm_component_layer::Lift>::load(
                 cx, #field_ty,
                 &bytes
-                    [<#ty as wasm_component_layer::component::ComponentType>::ABI.next_field32_size(&mut offset)..]
-                    [..<#ty as wasm_component_layer::component::ComponentType>::SIZE32]
+                    [<#ty as wasm_component_layer::ComponentType>::ABI.next_field32_size(&mut offset)..]
+                    [..<#ty as wasm_component_layer::ComponentType>::SIZE32]
             )?,));
         }
 
-        let generics = add_trait_bounds(
-            generics,
-            parse_quote!(wasm_component_layer::component::Lift),
-        );
+        let generics = add_trait_bounds(generics, parse_quote!(wasm_component_layer::Lift));
         let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
         let extract_ty = quote! {
@@ -394,7 +385,7 @@ impl Expander for LiftExpander {
         };
 
         let expanded = quote! {
-            unsafe impl #impl_generics wasm_component_layer::component::Lift for #name #ty_generics #where_clause {
+            unsafe impl #impl_generics wasm_component_layer::Lift for #name #ty_generics #where_clause {
                 #[inline]
                 fn lift(
                     cx: &mut #internal::LiftContext<'_>,
@@ -416,7 +407,7 @@ impl Expander for LiftExpander {
                     #extract_ty
                     debug_assert!(
                         (bytes.as_ptr() as usize)
-                            % (<Self as wasm_component_layer::component::ComponentType>::ALIGN32 as usize)
+                            % (<Self as wasm_component_layer::ComponentType>::ALIGN32 as usize)
                             == 0
                     );
                     let mut offset = 0;
@@ -438,7 +429,7 @@ impl Expander for LiftExpander {
         cases: &[VariantCase],
         style: VariantStyle,
     ) -> Result<TokenStream> {
-        let internal = quote!(wasm_component_layer::component::__internal);
+        let internal = quote!(wasm_component_layer::__internal);
 
         let mut lifts = TokenStream::new();
         let mut loads = TokenStream::new();
@@ -461,14 +452,14 @@ impl Expander for LiftExpander {
                     VariantStyle::Enum => unreachable!(),
                 };
                 lifts.extend(
-                    quote!(#index_u32 => Self::#ident(<#ty as wasm_component_layer::component::Lift>::lift(
+                    quote!(#index_u32 => Self::#ident(<#ty as wasm_component_layer::Lift>::lift(
                         cx, #payload_ty, unsafe { &src.payload.#ident }
                     )?),),
                 );
 
                 loads.extend(
-                    quote!(#index_quoted => Self::#ident(<#ty as wasm_component_layer::component::Lift>::load(
-                        cx, #payload_ty, &payload[..<#ty as wasm_component_layer::component::ComponentType>::SIZE32]
+                    quote!(#index_quoted => Self::#ident(<#ty as wasm_component_layer::Lift>::load(
+                        cx, #payload_ty, &payload[..<#ty as wasm_component_layer::ComponentType>::SIZE32]
                     )?),),
                 );
             } else {
@@ -478,10 +469,7 @@ impl Expander for LiftExpander {
             }
         }
 
-        let generics = add_trait_bounds(
-            generics,
-            parse_quote!(wasm_component_layer::component::Lift),
-        );
+        let generics = add_trait_bounds(generics, parse_quote!(wasm_component_layer::Lift));
         let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
         let from_bytes = match discriminant_size {
@@ -498,7 +486,7 @@ impl Expander for LiftExpander {
         };
 
         let expanded = quote! {
-            unsafe impl #impl_generics wasm_component_layer::component::Lift for #name #ty_generics #where_clause {
+            unsafe impl #impl_generics wasm_component_layer::Lift for #name #ty_generics #where_clause {
                 #[inline]
                 fn lift(
                     cx: &mut #internal::LiftContext<'_>,
@@ -518,7 +506,7 @@ impl Expander for LiftExpander {
                     ty: #internal::InterfaceType,
                     bytes: &[u8],
                 ) -> #internal::anyhow::Result<Self> {
-                    let align = <Self as wasm_component_layer::component::ComponentType>::ALIGN32;
+                    let align = <Self as wasm_component_layer::ComponentType>::ALIGN32;
                     debug_assert!((bytes.as_ptr() as usize) % (align as usize) == 0);
                     let discrim = #from_bytes;
                     let payload_offset = <Self as #internal::ComponentVariant>::PAYLOAD_OFFSET32;
@@ -545,29 +533,26 @@ impl Expander for LowerExpander {
         generics: &syn::Generics,
         fields: &[&syn::Field],
     ) -> Result<TokenStream> {
-        let internal = quote!(wasm_component_layer::component::__internal);
+        let internal = quote!(wasm_component_layer::__internal);
 
         let mut lowers = TokenStream::new();
         let mut stores = TokenStream::new();
 
         for (i, syn::Field { ident, ty, .. }) in fields.iter().enumerate() {
             let field_ty = quote!(ty.fields[#i].ty);
-            lowers.extend(quote!(wasm_component_layer::component::Lower::lower(
+            lowers.extend(quote!(wasm_component_layer::Lower::lower(
                 &self.#ident, cx, #field_ty, #internal::map_maybe_uninit!(dst.#ident)
             )?;));
 
-            stores.extend(quote!(wasm_component_layer::component::Lower::store(
+            stores.extend(quote!(wasm_component_layer::Lower::store(
                 &self.#ident,
                 cx,
                 #field_ty,
-                <#ty as wasm_component_layer::component::ComponentType>::ABI.next_field32_size(&mut offset),
+                <#ty as wasm_component_layer::ComponentType>::ABI.next_field32_size(&mut offset),
             )?;));
         }
 
-        let generics = add_trait_bounds(
-            generics,
-            parse_quote!(wasm_component_layer::component::Lower),
-        );
+        let generics = add_trait_bounds(generics, parse_quote!(wasm_component_layer::Lower));
         let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
         let extract_ty = quote! {
@@ -578,7 +563,7 @@ impl Expander for LowerExpander {
         };
 
         let expanded = quote! {
-            unsafe impl #impl_generics wasm_component_layer::component::Lower for #name #ty_generics #where_clause {
+            unsafe impl #impl_generics wasm_component_layer::Lower for #name #ty_generics #where_clause {
                 #[inline]
                 fn lower<T>(
                     &self,
@@ -598,7 +583,7 @@ impl Expander for LowerExpander {
                     ty: #internal::InterfaceType,
                     mut offset: usize
                 ) -> #internal::anyhow::Result<()> {
-                    debug_assert!(offset % (<Self as wasm_component_layer::component::ComponentType>::ALIGN32 as usize) == 0);
+                    debug_assert!(offset % (<Self as wasm_component_layer::ComponentType>::ALIGN32 as usize) == 0);
                     #extract_ty
                     #stores
                     Ok(())
@@ -617,7 +602,7 @@ impl Expander for LowerExpander {
         cases: &[VariantCase],
         style: VariantStyle,
     ) -> Result<TokenStream> {
-        let internal = quote!(wasm_component_layer::component::__internal);
+        let internal = quote!(wasm_component_layer::__internal);
 
         let mut lowers = TokenStream::new();
         let mut stores = TokenStream::new();
@@ -675,10 +660,7 @@ impl Expander for LowerExpander {
             }));
         }
 
-        let generics = add_trait_bounds(
-            generics,
-            parse_quote!(wasm_component_layer::component::Lower),
-        );
+        let generics = add_trait_bounds(generics, parse_quote!(wasm_component_layer::Lower));
         let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
         let extract_ty = quote! {
@@ -689,7 +671,7 @@ impl Expander for LowerExpander {
         };
 
         let expanded = quote! {
-            unsafe impl #impl_generics wasm_component_layer::component::Lower for #name #ty_generics #where_clause {
+            unsafe impl #impl_generics wasm_component_layer::Lower for #name #ty_generics #where_clause {
                 #[inline]
                 fn lower<T>(
                     &self,
@@ -711,7 +693,7 @@ impl Expander for LowerExpander {
                     mut offset: usize
                 ) -> #internal::anyhow::Result<()> {
                     #extract_ty
-                    debug_assert!(offset % (<Self as wasm_component_layer::component::ComponentType>::ALIGN32 as usize) == 0);
+                    debug_assert!(offset % (<Self as wasm_component_layer::ComponentType>::ALIGN32 as usize) == 0);
                     match self {
                         #stores
                     }
@@ -748,7 +730,7 @@ impl Expander for ComponentTypeExpander {
                             syn::LitStr::new(&ident.to_string(), ident.span())
                         });
 
-                        Ok(quote!((#name, <#ty as wasm_component_layer::component::ComponentType>::typecheck),))
+                        Ok(quote!((#name, <#ty as wasm_component_layer::ComponentType>::typecheck),))
                     },
                 )
                 .collect::<Result<_>>()?,
@@ -763,7 +745,7 @@ impl Expander for ComponentTypeExpander {
         cases: &[VariantCase],
         style: VariantStyle,
     ) -> Result<TokenStream> {
-        let internal = quote!(wasm_component_layer::component::__internal);
+        let internal = quote!(wasm_component_layer::__internal);
 
         let mut case_names_and_checks = TokenStream::new();
         let mut lower_payload_generic_params = TokenStream::new();
@@ -779,13 +761,11 @@ impl Expander for ComponentTypeExpander {
             let name = rename.unwrap_or_else(|| syn::LitStr::new(&ident.to_string(), ident.span()));
 
             if let Some(ty) = ty {
-                abi_list.extend(
-                    quote!(Some(<#ty as wasm_component_layer::component::ComponentType>::ABI),),
-                );
+                abi_list.extend(quote!(Some(<#ty as wasm_component_layer::ComponentType>::ABI),));
 
                 case_names_and_checks.extend(match style {
                     VariantStyle::Variant => {
-                        quote!((#name, Some(<#ty as wasm_component_layer::component::ComponentType>::typecheck)),)
+                        quote!((#name, Some(<#ty as wasm_component_layer::ComponentType>::typecheck)),)
                     }
                     VariantStyle::Enum => {
                         return Err(Error::new(
@@ -800,9 +780,8 @@ impl Expander for ComponentTypeExpander {
                 lower_payload_generic_params.extend(quote!(#generic: Copy,));
                 lower_payload_generic_args.extend(quote!(#generic,));
                 lower_payload_case_declarations.extend(quote!(#ident: #generic,));
-                lower_generic_args.extend(
-                    quote!(<#ty as wasm_component_layer::component::ComponentType>::Lower,),
-                );
+                lower_generic_args
+                    .extend(quote!(<#ty as wasm_component_layer::ComponentType>::Lower,));
 
                 unique_types.insert(ty);
             } else {
@@ -823,10 +802,8 @@ impl Expander for ComponentTypeExpander {
             VariantStyle::Enum => quote!(typecheck_enum),
         };
 
-        let generics = add_trait_bounds(
-            generics,
-            parse_quote!(wasm_component_layer::component::ComponentType),
-        );
+        let generics =
+            add_trait_bounds(generics, parse_quote!(wasm_component_layer::ComponentType));
         let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
         let lower = format_ident!("Lower{}", name);
         let lower_payload = format_ident!("LowerPayload{}", name);
@@ -856,7 +833,7 @@ impl Expander for ComponentTypeExpander {
                 #lower_payload_case_declarations
             }
 
-            unsafe impl #impl_generics wasm_component_layer::component::ComponentType for #name #ty_generics #where_clause {
+            unsafe impl #impl_generics wasm_component_layer::ComponentType for #name #ty_generics #where_clause {
                 type Lower = #lower<#lower_generic_args>;
 
                 #[inline]
@@ -1126,7 +1103,7 @@ pub fn expand_flags(flags: &Flags) -> Result<TokenStream> {
         component_names,
     )?;
 
-    let internal = quote!(wasm_component_layer::component::__internal);
+    let internal = quote!(wasm_component_layer::__internal);
 
     let field_names = fields
         .iter()
@@ -1240,7 +1217,7 @@ pub fn expand_flags(flags: &Flags) -> Result<TokenStream> {
 
         #component_type_impl
 
-        unsafe impl wasm_component_layer::component::Lower for #name {
+        unsafe impl wasm_component_layer::Lower for #name {
             fn lower<T>(
                 &self,
                 cx: &mut #internal::LowerContext<'_, T>,
@@ -1263,7 +1240,7 @@ pub fn expand_flags(flags: &Flags) -> Result<TokenStream> {
                 _ty: #internal::InterfaceType,
                 mut offset: usize
             ) -> #internal::anyhow::Result<()> {
-                debug_assert!(offset % (<Self as wasm_component_layer::component::ComponentType>::ALIGN32 as usize) == 0);
+                debug_assert!(offset % (<Self as wasm_component_layer::ComponentType>::ALIGN32 as usize) == 0);
                 #(
                     self.#field_names.store(
                         cx,
@@ -1276,7 +1253,7 @@ pub fn expand_flags(flags: &Flags) -> Result<TokenStream> {
             }
         }
 
-        unsafe impl wasm_component_layer::component::Lift for #name {
+        unsafe impl wasm_component_layer::Lift for #name {
             fn lift(
                 cx: &mut #internal::LiftContext<'_>,
                 _ty: #internal::InterfaceType,
@@ -1284,7 +1261,7 @@ pub fn expand_flags(flags: &Flags) -> Result<TokenStream> {
             ) -> #internal::anyhow::Result<Self> {
                 Ok(Self {
                     #(
-                        #field_names: wasm_component_layer::component::Lift::lift(
+                        #field_names: wasm_component_layer::Lift::lift(
                             cx,
                             #field_interface_type,
                             &src.#field_names,
@@ -1300,12 +1277,12 @@ pub fn expand_flags(flags: &Flags) -> Result<TokenStream> {
             ) -> #internal::anyhow::Result<Self> {
                 debug_assert!(
                     (bytes.as_ptr() as usize)
-                        % (<Self as wasm_component_layer::component::ComponentType>::ALIGN32 as usize)
+                        % (<Self as wasm_component_layer::ComponentType>::ALIGN32 as usize)
                         == 0
                 );
                 #(
                     let (field, bytes) = bytes.split_at(#field_size);
-                    let #field_names = wasm_component_layer::component::Lift::load(
+                    let #field_names = wasm_component_layer::Lift::load(
                         cx,
                         #field_interface_type,
                         field,

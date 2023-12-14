@@ -2,16 +2,16 @@ macro_rules! gentest {
     ($id:ident $name:tt $path:tt) => {
         mod $id {
             mod sugar {
-                wasm_component_layer::component::bindgen!(in $path);
+                wasm_component_layer::bindgen!(in $path);
             }
             mod async_ {
-                wasm_component_layer::component::bindgen!({
+                wasm_component_layer::bindgen!({
                     path: $path,
                     async: true,
                 });
             }
             mod tracing {
-                wasm_component_layer::component::bindgen!({
+                wasm_component_layer::bindgen!({
                     path: $path,
                     tracing: true,
                     ownership: Borrowing {
@@ -27,9 +27,9 @@ component_macro_test_helpers::foreach!(gentest);
 
 mod with_key_and_resources {
     use anyhow::Result;
-    use wasm_component_layer::component::Resource;
+    use wasm_component_layer::Resource;
 
-    wasm_component_layer::component::bindgen!({
+    wasm_component_layer::bindgen!({
         inline: "
             package demo:pkg;
 
@@ -108,7 +108,7 @@ mod with_key_and_resources {
 }
 
 mod trappable_errors {
-    wasm_component_layer::component::bindgen!({
+    wasm_component_layer::bindgen!({
         inline: "
             package demo:pkg;
 

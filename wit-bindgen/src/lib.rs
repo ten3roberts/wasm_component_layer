@@ -320,7 +320,7 @@ impl Wasmtime {
                         #[allow(clippy::all)]
                         pub mod {snake} {{
                             #[allow(unused_imports)]
-                            use wasmtime::component::__internal::anyhow;
+                            use anyhow;
 
                             {module}
                         }}
@@ -352,7 +352,7 @@ impl Wasmtime {
                 self.exports.funcs.push(body);
                 (
                     func_field_name(resolve, func),
-                    "wasmtime::component::Func".to_string(),
+                    "wasm_component_layer::Func".to_string(),
                     getter,
                 )
             }
@@ -372,7 +372,7 @@ impl Wasmtime {
                 for (_, func) in iface.functions.iter() {
                     uwriteln!(
                         gen.src,
-                        "{}: wasmtime::component::Func,",
+                        "{}: wasm_component_layer::Func,",
                         func_field_name(resolve, func)
                     );
                 }
@@ -383,8 +383,8 @@ impl Wasmtime {
                     gen.src,
                     "
                         pub fn new(
-                            __exports: &mut wasmtime::component::ExportInstance<'_, '_>,
-                        ) -> wasmtime::Result<{camel}> {{
+                            __exports: &mut wasm_component_layer::ExportInstance<'_, '_>,
+                        ) -> anyhow::Result<{camel}> {{
                     "
                 );
                 let mut fields = Vec::new();
@@ -447,7 +447,7 @@ impl Wasmtime {
                         #[allow(clippy::all)]
                         pub mod {snake} {{
                             #[allow(unused_imports)]
-                            use wasmtime::component::__internal::anyhow;
+                            use wasm_component_layer::__internal::anyhow;
 
                             {module}
                         }}
@@ -519,7 +519,7 @@ impl Wasmtime {
         self.toplevel_import_trait(resolve, world);
 
         uwriteln!(self.src, "const _: () = {{");
-        uwriteln!(self.src, "use wasmtime::component::__internal::anyhow;");
+        // uwriteln!(self.src, "use anyhow;");
 
         uwriteln!(self.src, "impl {camel} {{");
         self.toplevel_add_to_linker(resolve, world);
@@ -530,10 +530,10 @@ impl Wasmtime {
                 /// parameters, wrapping up the result in a structure that
                 /// translates between wasm and the host.
                 pub {async_} fn instantiate{async__}<T {send}>(
-                    mut store: impl wasmtime::AsContextMut<Data = T>,
-                    component: &wasmtime::component::Component,
-                    linker: &wasmtime::component::Linker<T>,
-                ) -> wasmtime::Result<(Self, wasmtime::component::Instance)> {{
+                    mut store: impl wasm_component_layer::AsContextMut<Data = T>,
+                    component: &wasm_component_layer::Component,
+                    linker: &wasm_component_layer::Linker<T>,
+                ) -> anyhow::Result<(Self, wasm_component_layer::Instance)> {{
                     let instance = linker.instantiate{async__}(&mut store, component){await_}?;
                     Ok((Self::new(store, &instance)?, instance))
                 }}
@@ -542,9 +542,9 @@ impl Wasmtime {
                 /// parameters, wrapping up the result in a structure that
                 /// translates between wasm and the host.
                 pub {async_} fn instantiate_pre<T {send}>(
-                    mut store: impl wasmtime::AsContextMut<Data = T>,
-                    instance_pre: &wasmtime::component::InstancePre<T>,
-                ) -> wasmtime::Result<(Self, wasmtime::component::Instance)> {{
+                    mut store: impl wasm_component_layer::AsContextMut<Data = T>,
+                    instance_pre: &wasm_component_layer::InstancePre<T>,
+                ) -> anyhow::Result<(Self, wasm_component_layer::Instance)> {{
                     let instance = instance_pre.instantiate{async__}(&mut store){await_}?;
                     Ok((Self::new(store, &instance)?, instance))
                 }}
@@ -558,9 +558,9 @@ impl Wasmtime {
                 /// returned structure which can be used to interact with
                 /// the wasm module.
                 pub fn new(
-                    mut store: impl wasmtime::AsContextMut,
-                    instance: &wasmtime::component::Instance,
-                ) -> wasmtime::Result<Self> {{
+                    mut store: impl wasm_component_layer::AsContextMut,
+                    instance: &wasm_component_layer::Instance,
+                ) -> anyhow::Result<Self> {{
                     let mut store = store.as_context_mut();
                     let mut exports = instance.exports(&mut store);
                     let mut __exports = exports.root();
@@ -711,7 +711,7 @@ impl Wasmtime {
 
         let world_camel = to_rust_upper_camel_case(&resolve.worlds[world].name);
         if self.opts.async_.maybe_async() {
-            uwriteln!(self.src, "#[wasmtime::component::__internal::async_trait]")
+            uwriteln!(self.src, "#[wasm_component_layer::__internal::async_trait]")
         }
         uwrite!(self.src, "pub trait {world_camel}Imports");
         for (i, resource) in get_world_resources(resolve, world).enumerate() {
@@ -748,9 +748,9 @@ impl Wasmtime {
             self.src,
             "
                 pub fn add_to_linker<T, U>(
-                    linker: &mut wasmtime::component::Linker<T>,
+                    linker: &mut wasm_component_layer::Linker<T>,
                     get: impl Fn(&mut T) -> &mut U + Send + Sync + Copy + 'static,
-                ) -> wasmtime::Result<()>
+                ) -> anyhow::Result<()>
                     where U: \
             "
         );
@@ -795,9 +795,9 @@ impl Wasmtime {
             self.src,
             "
                 pub fn add_root_to_linker<T, U>(
-                    linker: &mut wasmtime::component::Linker<T>,
+                    linker: &mut wasm_component_layer::Linker<T>,
                     get: impl Fn(&mut T) -> &mut U + Send + Sync + Copy + 'static,
-                ) -> wasmtime::Result<()>
+                ) -> anyhow::Result<()>
                     where U: {world_trait}{maybe_send}
                 {{
                     let mut linker = linker.root();
@@ -809,8 +809,8 @@ impl Wasmtime {
                 self.src,
                 "linker.resource::<{camel}>(
                     \"{name}\",
-                    move |mut store, rep| -> wasmtime::Result<()> {{
-                        Host{camel}::drop(get(store.data_mut()), wasmtime::component::Resource::new_own(rep))
+                    move |mut store, rep| -> anyhow::Result<()> {{
+                        Host{camel}::drop(get(store.data_mut()), wasm_component_layer::Resource::new_own(rep))
                     }},
                 )?;"
             )
@@ -969,7 +969,7 @@ impl<'a> InterfaceGenerator<'a> {
             }
 
             if self.gen.opts.async_.maybe_async() {
-                uwriteln!(self.src, "#[wasmtime::component::__internal::async_trait]")
+                uwriteln!(self.src, "#[wasm_component_layer::__internal::async_trait]")
             }
 
             uwriteln!(self.src, "pub trait Host{camel} {{");
@@ -1006,7 +1006,7 @@ impl<'a> InterfaceGenerator<'a> {
 
             uwrite!(
                 self.src,
-                "fn drop(&mut self, rep: wasmtime::component::Resource<{camel}>) -> wasmtime::Result<()>;");
+                "fn drop(&mut self, rep: wasm_component_layer::Resource<{camel}>) -> anyhow::Result<()>;");
 
             uwriteln!(self.src, "}}");
         } else {
@@ -1022,7 +1022,7 @@ impl<'a> InterfaceGenerator<'a> {
             uwriteln!(
                 self.src,
                 "
-                    pub type {camel} = wasmtime::component::ResourceAny;
+                    pub type {camel} = wasm_component_layer::ResourceAny;
 
                     pub struct Guest{camel}<'a> {{
                         funcs: &'a {iface_name},
@@ -1038,11 +1038,11 @@ impl<'a> InterfaceGenerator<'a> {
             let lt = self.lifetime_for(&info, mode);
             self.rustdoc(docs);
 
-            self.push_str("#[derive(wasmtime::component::ComponentType)]\n");
+            self.push_str("#[derive(wasm_component_layer::ComponentType)]\n");
             if lt.is_none() {
-                self.push_str("#[derive(wasmtime::component::Lift)]\n");
+                self.push_str("#[derive(wasm_component_layer::Lift)]\n");
             }
-            self.push_str("#[derive(wasmtime::component::Lower)]\n");
+            self.push_str("#[derive(wasm_component_layer::Lower)]\n");
             self.push_str("#[component(record)]\n");
 
             if info.is_copy() {
@@ -1126,10 +1126,10 @@ impl<'a> InterfaceGenerator<'a> {
     fn type_flags(&mut self, id: TypeId, name: &str, flags: &Flags, docs: &Docs) {
         self.rustdoc(docs);
         let rust_name = to_rust_upper_camel_case(name);
-        self.src.push_str("wasmtime::component::flags!(\n");
+        self.src.push_str("wasm_component_layer::flags!(\n");
         self.src.push_str(&format!("{rust_name} {{\n"));
         for flag in flags.flags.iter() {
-            // TODO wasmtime-component-macro doesnt support docs for flags rn
+            // TODO wasm_component_layer-component-macro doesnt support docs for flags rn
             uwrite!(
                 self.src,
                 "#[component(name=\"{}\")] const {};\n",
@@ -1179,12 +1179,12 @@ impl<'a> InterfaceGenerator<'a> {
         self.push_str("const _: () = {\n");
         uwriteln!(
             self.src,
-            "assert!({} == <{name} as wasmtime::component::ComponentType>::SIZE32);",
+            "assert!({} == <{name} as wasm_component_layer::ComponentType>::SIZE32);",
             self.gen.sizes.size(&Type::Id(id)),
         );
         uwriteln!(
             self.src,
-            "assert!({} == <{name} as wasmtime::component::ComponentType>::ALIGN32);",
+            "assert!({} == <{name} as wasm_component_layer::ComponentType>::ALIGN32);",
             self.gen.sizes.align(&Type::Id(id)),
         );
         self.push_str("};\n");
@@ -1206,11 +1206,11 @@ impl<'a> InterfaceGenerator<'a> {
 
             self.rustdoc(docs);
             let lt = self.lifetime_for(&info, mode);
-            self.push_str("#[derive(wasmtime::component::ComponentType)]\n");
+            self.push_str("#[derive(wasm_component_layer::ComponentType)]\n");
             if lt.is_none() {
-                self.push_str("#[derive(wasmtime::component::Lift)]\n");
+                self.push_str("#[derive(wasm_component_layer::Lift)]\n");
             }
-            self.push_str("#[derive(wasmtime::component::Lower)]\n");
+            self.push_str("#[derive(wasm_component_layer::Lower)]\n");
             self.push_str(&format!("#[component({})]\n", derive_component));
             if info.is_copy() {
                 self.push_str("#[derive(Copy, Clone)]\n");
@@ -1333,9 +1333,9 @@ impl<'a> InterfaceGenerator<'a> {
 
         let name = to_rust_upper_camel_case(name);
         self.rustdoc(docs);
-        self.push_str("#[derive(wasmtime::component::ComponentType)]\n");
-        self.push_str("#[derive(wasmtime::component::Lift)]\n");
-        self.push_str("#[derive(wasmtime::component::Lower)]\n");
+        self.push_str("#[derive(wasm_component_layer::ComponentType)]\n");
+        self.push_str("#[derive(wasm_component_layer::Lift)]\n");
+        self.push_str("#[derive(wasm_component_layer::Lower)]\n");
         self.push_str("#[component(enum)]\n");
         self.push_str("#[derive(Clone, Copy, PartialEq, Eq)]\n");
         self.push_str(&format!("pub enum {} {{\n", name));
@@ -1512,7 +1512,7 @@ impl<'a> InterfaceGenerator<'a> {
         let owner = TypeOwner::Interface(id);
 
         if self.gen.opts.async_.maybe_async() {
-            uwriteln!(self.src, "#[wasmtime::component::__internal::async_trait]")
+            uwriteln!(self.src, "#[wasm_component_layer::__internal::async_trait]")
         }
         // Generate the `pub trait` which represents the host functionality for
         // this import which additionally inherits from all resource traits
@@ -1568,7 +1568,7 @@ impl<'a> InterfaceGenerator<'a> {
                         let root = self.path_to_root();
                         uwriteln!(
                             self.src,
-                            "fn convert_{err_snake}(&mut self, err: {root}{custom_name}) -> wasmtime::Result<{err_camel}>;"
+                            "fn convert_{err_snake}(&mut self, err: {root}{custom_name}) -> anyhow::Result<{err_camel}>;"
                         );
                     }
                 }
@@ -1591,9 +1591,9 @@ impl<'a> InterfaceGenerator<'a> {
             self.src,
             "
                 pub fn add_to_linker<T, U>(
-                    linker: &mut wasmtime::component::Linker<T>,
+                    linker: &mut wasm_component_layer::Linker<T>,
                     get: impl Fn(&mut T) -> &mut U + Send + Sync + Copy + 'static,
-                ) -> wasmtime::Result<()>
+                ) -> anyhow::Result<()>
                     where {where_clause}
                 {{
             "
@@ -1606,8 +1606,8 @@ impl<'a> InterfaceGenerator<'a> {
                 self.src,
                 "inst.resource::<{camel}>(
                     \"{name}\",
-                    move |mut store, rep| -> wasmtime::Result<()> {{
-                        Host{camel}::drop(get(store.data_mut()), wasmtime::component::Resource::new_own(rep))
+                    move |mut store, rep| -> anyhow::Result<()> {{
+                        Host{camel}::drop(get(store.data_mut()), wasm_component_layer::Resource::new_own(rep))
                     }},
                 )?;"
             )
@@ -1640,7 +1640,7 @@ impl<'a> InterfaceGenerator<'a> {
         // codegen here.
 
         self.src
-            .push_str("move |mut caller: wasmtime::StoreContextMut<'_, T>, (");
+            .push_str("move |mut caller: wasm_component_layer::StoreContextMut<'_, T>, (");
         for (i, _param) in func.params.iter().enumerate() {
             uwrite!(self.src, "arg{},", i);
         }
@@ -1789,7 +1789,7 @@ impl<'a> InterfaceGenerator<'a> {
 
         if let Some((r, _id, error_typename)) = self.special_case_trappable_error(&func.results) {
             // Functions which have a single result `result<ok,err>` get special
-            // cased to use the host_wasmtime_rust::Error<err>, making it possible
+            // cased to use the host_wasm_component_layer_rust::Error<err>, making it possible
             // for them to trap or use `?` to propogate their errors
             self.push_str("Result<");
             if let Some(ok) = r.ok {
@@ -1801,9 +1801,9 @@ impl<'a> InterfaceGenerator<'a> {
             self.push_str(&error_typename);
             self.push_str(">");
         } else {
-            // All other functions get their return values wrapped in an wasmtime::Result.
+            // All other functions get their return values wrapped in an anyhow::Result.
             // Returning the anyhow::Error case can be used to trap.
-            self.push_str("wasmtime::Result<");
+            self.push_str("anyhow::Result<");
             self.print_result_ty(&func.results, TypeMode::Owned);
             self.push_str(">");
         }
@@ -1853,7 +1853,7 @@ impl<'a> InterfaceGenerator<'a> {
 
         uwrite!(
             self.src,
-            "pub {async_} fn call_{}<S: wasmtime::AsContextMut>(&self, mut store: S, ",
+            "pub {async_} fn call_{}<S: wasm_component_layer::AsContextMut>(&self, mut store: S, ",
             func.item_name().to_snake_case(),
         );
 
@@ -1863,12 +1863,12 @@ impl<'a> InterfaceGenerator<'a> {
             self.push_str(",");
         }
 
-        self.src.push_str(") -> wasmtime::Result<");
+        self.src.push_str(") -> anyhow::Result<");
         self.print_result_ty(&func.results, TypeMode::Owned);
 
         if is_async {
             self.src
-                .push_str("> where <S as wasmtime::AsContext>::Data: Send {\n");
+                .push_str("> where <S as wasm_component_layer::AsContext>::Data: Send {\n");
         } else {
             self.src.push_str("> {\n");
         }
@@ -1893,7 +1893,7 @@ impl<'a> InterfaceGenerator<'a> {
         }
 
         self.src.push_str("let callee = unsafe {\n");
-        self.src.push_str("wasmtime::component::TypedFunc::<(");
+        self.src.push_str("wasm_component_layer::TypedFunc::<(");
         for (_, ty) in func.params.iter() {
             self.print_ty(ty, TypeMode::AllBorrowed("'_"));
             self.push_str(", ");
