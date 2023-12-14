@@ -125,6 +125,9 @@ pub use crate::types::{FuncType, ValueType, VariantCase};
 pub use crate::values::*;
 pub use crate::values::{Enum, Flags, Record, Tuple, Value, Variant};
 
+#[cfg(feature = "macros")]
+pub use wasm_component_layer_macro::bindgen;
+
 /// A parsed and validated WebAssembly component, which may be used to instantiate [`Instance`]s.
 #[derive(Clone, Debug)]
 pub struct Component(Arc<ComponentInner>);
