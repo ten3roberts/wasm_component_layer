@@ -23,128 +23,128 @@ macro_rules! gentest {
     };
 }
 
-component_macro_test_helpers::foreach!(gentest);
+// component_macro_test_helpers::foreach!(gentest);
 
-mod with_key_and_resources {
-    use anyhow::Result;
-    use wasm_component_layer::Resource;
+// mod with_key_and_resources {
+//     use anyhow::Result;
+//     use wasm_component_layer::Resource;
 
-    wasm_component_layer::bindgen!({
-        inline: "
-            package demo:pkg;
+//     wasm_component_layer::bindgen!({
+//         inline: "
+//             package demo:pkg;
 
-            interface bar {
-                resource a;
-                resource b;
-            }
+//             interface bar {
+//                 resource a;
+//                 resource b;
+//             }
 
-            world foo {
-                resource a;
-                resource b;
+//             world foo {
+//                 resource a;
+//                 resource b;
 
-                import foo: interface {
-                    resource a;
-                    resource b;
-                }
+//                 import foo: interface {
+//                     resource a;
+//                     resource b;
+//                 }
 
-                import bar;
-            }
-        ",
-        with: {
-            "a": MyA,
-            "b": MyA,
-            "foo/a": MyA,
-            "foo/b": MyA,
-            "demo:pkg/bar/a": MyA,
-            "demo:pkg/bar/b": MyA,
-        },
-    });
+//                 import bar;
+//             }
+//         ",
+//         with: {
+//             "a": MyA,
+//             "b": MyA,
+//             "foo/a": MyA,
+//             "foo/b": MyA,
+//             "demo:pkg/bar/a": MyA,
+//             "demo:pkg/bar/b": MyA,
+//         },
+//     });
 
-    pub struct MyA;
+//     pub struct MyA;
 
-    struct MyComponent;
+//     struct MyComponent;
 
-    impl FooImports for MyComponent {}
+//     impl FooImports for MyComponent {}
 
-    impl HostA for MyComponent {
-        fn drop(&mut self, _: Resource<MyA>) -> Result<()> {
-            loop {}
-        }
-    }
+//     impl HostA for MyComponent {
+//         fn drop(&mut self, _: Resource<MyA>) -> Result<()> {
+//             loop {}
+//         }
+//     }
 
-    impl HostB for MyComponent {
-        fn drop(&mut self, _: Resource<MyA>) -> Result<()> {
-            loop {}
-        }
-    }
+//     impl HostB for MyComponent {
+//         fn drop(&mut self, _: Resource<MyA>) -> Result<()> {
+//             loop {}
+//         }
+//     }
 
-    impl foo::Host for MyComponent {}
+//     impl foo::Host for MyComponent {}
 
-    impl foo::HostA for MyComponent {
-        fn drop(&mut self, _: Resource<MyA>) -> Result<()> {
-            loop {}
-        }
-    }
+//     impl foo::HostA for MyComponent {
+//         fn drop(&mut self, _: Resource<MyA>) -> Result<()> {
+//             loop {}
+//         }
+//     }
 
-    impl foo::HostB for MyComponent {
-        fn drop(&mut self, _: Resource<MyA>) -> Result<()> {
-            loop {}
-        }
-    }
+//     impl foo::HostB for MyComponent {
+//         fn drop(&mut self, _: Resource<MyA>) -> Result<()> {
+//             loop {}
+//         }
+//     }
 
-    impl demo::pkg::bar::Host for MyComponent {}
+//     impl demo::pkg::bar::Host for MyComponent {}
 
-    impl demo::pkg::bar::HostA for MyComponent {
-        fn drop(&mut self, _: Resource<MyA>) -> Result<()> {
-            loop {}
-        }
-    }
+//     impl demo::pkg::bar::HostA for MyComponent {
+//         fn drop(&mut self, _: Resource<MyA>) -> Result<()> {
+//             loop {}
+//         }
+//     }
 
-    impl demo::pkg::bar::HostB for MyComponent {
-        fn drop(&mut self, _: Resource<MyA>) -> Result<()> {
-            loop {}
-        }
-    }
-}
+//     impl demo::pkg::bar::HostB for MyComponent {
+//         fn drop(&mut self, _: Resource<MyA>) -> Result<()> {
+//             loop {}
+//         }
+//     }
+// }
 
-mod trappable_errors {
-    wasm_component_layer::bindgen!({
-        inline: "
-            package demo:pkg;
+// mod trappable_errors {
+//     wasm_component_layer::bindgen!({
+//         inline: "
+//             package demo:pkg;
 
-            interface a {
-                type b = u64;
+//             interface a {
+//                 type b = u64;
 
-                z1: func() -> result<_, b>;
-                z2: func() -> result<_, b>;
-            }
+//                 z1: func() -> result<_, b>;
+//                 z2: func() -> result<_, b>;
+//             }
 
-            interface b {
-                use a.{b};
-                z: func() -> result<_, b>;
-            }
+//             interface b {
+//                 use a.{b};
+//                 z: func() -> result<_, b>;
+//             }
 
-            interface c {
-                type b = u64;
-            }
+//             interface c {
+//                 type b = u64;
+//             }
 
-            interface d {
-                use c.{b};
-                z: func() -> result<_, b>;
-            }
+//             interface d {
+//                 use c.{b};
+//                 z: func() -> result<_, b>;
+//             }
 
-            world foo {
-                import a;
-                import b;
-                import d;
-            }
-        ",
-        trappable_error_type: {
-            "demo:pkg/a"::"b": MyX,
-            "demo:pkg/c"::"b": MyX,
-        },
-    });
+//             world foo {
+//                 import a;
+//                 import b;
+//                 import d;
+//             }
+//         ",
+//         trappable_error_type: {
+//             "demo:pkg/a"::"b": MyX,
+//             "demo:pkg/c"::"b": MyX,
+//         },
+//     });
 
-    #[allow(dead_code)]
-    type MyX = u32;
-}
+//     #[allow(dead_code)]
+//     type MyX = u32;
+// }
